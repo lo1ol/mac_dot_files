@@ -1,0 +1,158 @@
+#!/usr/bin/env fish
+
+mkdir -p /tmp/yabai/zoom_cache
+cd /tmp/yabai/zoom_cache
+
+function window_is_float
+    set layout $(yabai -m query --spaces --space | jq '.type')
+    [ "$layout" = "\"float\"" ] && echo true
+    echo $(yabai -m query --windows --window | jq '."is-floating"')
+end
+
+function reset_window_cache
+    set window_id $(yabai -m query --windows --window | jq '.id')
+    rm -rf $window_id
+end
+
+function window_move -a direction px
+    set layout $(yabai -m query --spaces --space | jq '.type')
+    set float $(window_is_float)
+
+    if $float
+        [ "$direction" = "left" ] && set arg -$px:0
+        [ "$direction" = "right" ] && set arg $px:0
+        [ "$direction" = "up" ] && set arg 0:-$px
+        [ "$direction" = "down" ] && set arg 0:+$px
+        yabai -m window --move rel:$arg
+    else if [ "$layout" = "\"bsp\"" ]
+        [ "$direction" = "left" ] && set arg west
+        [ "$direction" = "right" ] && set arg east
+        [ "$direction" = "up" ] && set arg north
+        [ "$direction" = "down" ] && set arg south
+        yabai -m window --swap $arg
+    else if [ "$layout" = "\"stack\"" ]
+        [ "$direction" = "left" ] && set arg stack.prev
+        [ "$direction" = "right" ] && set arg stack.next
+        [ "$direction" = "up" ] && set arg stack.next
+        [ "$direction" = "down" ] && set arg stack.prev
+        
+        [ "$arg" = "stack.next" ] && return
+        yabai -m window --stack stack.prev
+    end
+end
+
+function window_focus -a direction
+    set layout $(yabai -m query --spaces --space | jq '.type')
+
+    if [ "$layout" = "\"float\"" ] || [ "$layout" = "\"bsp\"" ]
+        [ "$direction" = "left" ] && set axe .frame.x && set dir + 1
+        [ "$direction" = "right" ] && set axe .frame.x && set dir - 1
+        [ "$direction" = "up" ] && set axe .frame.y && set dir + 1
+        [ "$direction" = "down" ] && set axe .frame.y && set dir - 1
+
+        # cycle through all visible windows sorted by: coordinates -> display index
+        set windows $(yabai -m query --windows | jq -re "sort_by(.display, $axe, .id) | map(select(.\"is-visible\" == true)) | reverse")
+        set current_index $(echo $windows | jq -re "index(map(select(.\"has-focus\" == true)))")
+        set length $(echo $windows | jq "length")
+        set next_index $(expr \( $current_index $dir \) % $length)
+        set next $(echo $windows | jq -re "nth($next_index).id")
+
+        yabai -m window --focus $next
+#        else if [ "$layout" = "\"bsp\"" ]
+#        [ "$direction" = "left" ] && set arg west
+#        [ "$direction" = "right" ] && set arg east
+#        [ "$direction" = "up" ] && set arg north
+#        [ "$direction" = "down" ] && set arg south
+#        yabai -m window --focus $arg
+    else if [ "$layout" = "\"stack\"" ]
+        [ "$direction" = "left" ] && set arg stack.prev
+        [ "$direction" = "right" ] && set arg stack.next
+        [ "$direction" = "up" ] && set arg stack.next
+        [ "$direction" = "down" ] && set arg stack.prev
+        
+        yabai -m window --focus $arg
+    end
+end
+
+function get_window_id_by_index -a index
+    yabai -m query --spaces | jq -c "[.[] | select(.\"is-native-fullscreen\" == false)][$index].index"
+end
+
+function toggle_float_focus
+    set float $(window_is_float)
+
+    set search_float true
+    $float && set search_float false
+    set next_id $(yabai -m query --windows --space | jq -c "[.[] | select( .\"is-floating\" == $search_float )][0].id")
+
+    yabai -m window --focus $next_id
+end
+
+function toggle_stack
+    set layout $(yabai -m query --spaces --space | jq '.type')
+    if [ "$layout" != "\"stack\"" ]
+        yabai -m space --layout stack
+    else
+        yabai -m space --layout bsp
+    end
+end
+
+function toggle_float
+    set layout $(yabai -m query --spaces --space | jq '.type')
+    if [ "$layout" != "\"float\"" ]
+        yabai -m space --layout float
+    else if [ "$layout" = "\"float\"" ]
+        yabai -m space --layout bsp
+    end
+end
+
+function toggle_service
+    echo $status
+    if ps aux | grep -v grep | grep /opt/homebrew/opt/yabai/bin/yabai
+        brew services stop yabai
+    else
+        brew services start yabai
+    end
+end
+
+function toggle_zoom
+    set float $(window_is_float)
+
+    if $float
+        set window_id $(yabai -m query --windows --window | jq '.id')
+
+        if [ -e $window_id ]
+            cat $window_id | read x y w h
+            yabai -m window --resize abs:$w:$h
+            yabai -m window --move abs:$x:$y
+            reset_window_cache
+        else
+            yabai -m query --windows --window | jq '.frame.x, .frame.y, .frame.w, .frame.h' | tr '\n' ' ' > $window_id
+            yabai -m window --grid 1:1:0:0:1:1
+        end
+    else
+        yabai -m window --toggle zoom-fullscreen
+    end
+end
+
+function resize -a dir px
+    set float $(window_is_float)
+
+    if $float
+        yabai -m query --windows --window | jq '.frame.x, .frame.y, .frame.w, .frame.h' | tr '\n' ' ' | read x y w h
+        [ "$dir" = "incr" ] && set move - && set resize +
+        [ "$dir" = "decr" ] && set move + && set resize -
+
+        set new_x $(math "max (0, $x $move $px / 2)")
+        set new_y $(math "max (0, $y $move $px / 2)")
+
+        yabai -m window --resize bottom_right:$resize$px:$resize$px
+        yabai -m window --move abs:$new_x:$new_y
+    end
+    
+    reset_window_cache
+end
+
+$argv
+
+

@@ -1,0 +1,46 @@
+alt + shift - left : $HOME/.config/yabai/tools window_focus left
+alt + shift - right : $HOME/.config/yabai/tools window_focus right
+alt + shift - up : $HOME/.config/yabai/tools window_focus up
+alt + shift - down : $HOME/.config/yabai/tools window_focus down
+
+alt + ctrl + shift - left : $HOME/.config/yabai/tools window_move left 100
+alt + ctrl + shift - right : $HOME/.config/yabai/tools window_move right 100
+alt + ctrl + shift - up : $HOME/.config/yabai/tools window_move up 100
+alt + ctrl + shift - down : $HOME/.config/yabai/tools window_move down 100
+
+alt + shift - 1 : yabai -m window --space $($HOME/.config/yabai/tools get_window_id_by_index 0)
+alt + shift - 2 : yabai -m window --space $($HOME/.config/yabai/tools get_window_id_by_index 1)
+alt + shift - 3 : yabai -m window --space $($HOME/.config/yabai/tools get_window_id_by_index 2)
+alt + shift - 4 : yabai -m window --space $($HOME/.config/yabai/tools get_window_id_by_index 3)
+alt + shift - 5 : yabai -m window --space $($HOME/.config/yabai/tools get_window_id_by_index 4)
+
+# go to full screen
+alt - f : $HOME/.config/yabai/tools toggle_zoom
+alt + shift - f : yabai -m window --toggle native-fullscreen
+
+# change size
+alt + shift - 0x1B : $HOME/.config/yabai/tools resize decr 50
+alt + shift - 0x18 : $HOME/.config/yabai/tools resize incr 50
+
+# toggle border
+alt - p : yabai -m space --toggle padding
+
+# close current window
+alt - q : yabai -m window --close
+
+# toggle split axes
+alt -e : yabai -m window --toggle split
+
+# toggle flaot windows
+alt - x : $HOME/.config/yabai/tools toggle_float_focus
+alt + shift - x : yabai -m window --toggle float --grid 4:4:1:1:2:2
+
+# reload config
+alt + shift - y : bash -c '$HOME/.config/yabai/yabairc'
+
+# reload config
+alt + shift - r : $HOME/.config/yabai/tools toggle_service
+
+# toggle workspace layout
+alt - s : $HOME/.config/yabai/tools toggle_stack
+alt - z : $HOME/.config/yabai/tools toggle_float
